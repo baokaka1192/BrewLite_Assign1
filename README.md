@@ -1,126 +1,108 @@
-# BrewLite
+# BrewLite (khoảng 1: task 1 đến 3)
 
-Cashless coffee ordering app — Software Engineering assignment (Saigon University, 2026–2027).
-Stack: **Next.js 14** (frontend) · **NestJS 10** (backend) · **PostgreSQL** · Docker Compose.
+Ứng dụng đặt cà phê không dùng tiền mặt, bài tập môn Công nghệ phần mềm, Đại học Sài Gòn (2026–2027).
 
-## Folder structure
+Công nghệ: **Next.js 14** (frontend), **NestJS 10** (backend), **PostgreSQL + Prisma**, Docker Compose.
+
+Bản này là phần đầu của Assignment 1. Các tính năng sau (chi tiết món, giỏ hàng, đăng nhập, thanh toán, đơn hàng) được thêm ở các phần tiếp theo.
+
+## Đã làm trong phần này
+
+| Task | Nội dung | Trạng thái |
+| ---- | -------- | ---------- |
+| 1 | Khởi tạo monorepo, README, Git, `.env.example` | Xong |
+| 2 | API `GET /products`, `GET /products/:id` | Xong |
+| 3 | Trang menu: lưới sản phẩm, lọc theo danh mục, trạng thái loading, trống, lỗi | Xong |
+| 4 | Chi tiết sản phẩm, chọn size và topping | Mới có logic tính giá, chưa có trang |
+
+## Cấu trúc thư mục
 
 ```
-brewlite/
-├── apps/
-│   ├── backend/                    NestJS REST API  (http://localhost:4000/api)
-│   │   ├── src/
-│   │   │   ├── main.ts             bootstrap: prefix /api, CORS, ValidationPipe
-│   │   │   ├── app.module.ts       root module
-│   │   │   ├── config/             typed env configuration
-│   │   │   ├── prisma/             global PrismaModule + PrismaService
-│   │   │   ├── common/             shared: decorators, filters, guards, interceptors, pipes
-│   │   │   └── modules/            one folder per feature (controller, service, dto, entity)
-│   │   │       ├── auth/           Task 7   register / login / JWT
-│   │   │       ├── users/          Task 7
-│   │   │       ├── products/       Task 2   GET /products
-│   │   │       ├── orders/         Task 6, 9, 10  state machine, history
-│   │   │       ├── payments/       Task 8, 10     mock gateway, idempotency
-│   │   │       └── promotions/     Task 10  vouchers, loyalty points
-│   │   ├── prisma/                 schema, migrations, seed.ts (Prisma + PostgreSQL)
-│   │   └── test/                   e2e tests
-│   └── frontend/                   Next.js App Router  (http://localhost:3000)
-│       ├── public/images/          photos for the landing page
-│       └── src/
-│           ├── app/                routes: layout, page (landing), menu, later cart/checkout/orders
-│           ├── components/
-│           │   ├── ui/             base primitives (shadcn-style Button)
-│           │   ├── layout/         Navbar, Footer
-│           │   ├── landing/        one file per landing section
-│           │   └── shared/         Reveal, AmberRule, Chip, ImageFrame, MotionProvider
-│           ├── features/           feature code per domain: menu, cart, auth, checkout, orders
-│           ├── content/            landing-page copy (edit text here, not in components)
-│           ├── lib/                api client, utils, formatVND
-│           ├── hooks/ store/ types/
-├── docs/scrum/                     sprint plan, Definition of Done
-├── docker-compose.yml              db + backend + frontend
-├── .env.example
-└── package.json                    helper scripts
+apps/
+├── backend/            NestJS, API tại http://localhost:4000/api
+│   ├── src/modules/    mỗi tính năng một thư mục (hiện dùng: products)
+│   ├── src/common/     phần dùng chung: decorator, filter, guard
+│   ├── prisma/         schema, migration, seed
+│   └── test/           test e2e
+└── frontend/           Next.js (App Router), http://localhost:3000
+    └── src/
+        ├── app/        route: trang chủ, menu
+        ├── components/ thành phần giao diện
+        └── lib/        API client, tính giá, tiện ích
+docs/scrum/             kế hoạch sprint, Definition of Done
+docker/                 khởi tạo database test
+docker-compose.yml
+.env.example
 ```
 
-Rule of thumb: **routes in `app/`, UI pieces in `components/`, business code for one domain in `features/` (frontend) or `modules/` (backend).**
+Quy ước: route đặt trong `app/`, thành phần giao diện trong `components/`, mã nghiệp vụ của một tính năng trong `modules/` (backend).
 
-## Run locally
+## Chạy trên máy
+
+Cần Node.js 20 trở lên và Docker.
 
 ```bash
 cp .env.example .env
+cp apps/backend/.env.example apps/backend/.env
+docker compose up -d db
 npm run install:all
-npm run dev:backend      # http://localhost:4000/api  -> { "message": "Hello from BrewLite API" }
+cd apps/backend && npx prisma migrate dev && npm run prisma:seed && cd ../..
+npm run dev:backend      # http://localhost:4000/api
 npm run dev:frontend     # http://localhost:3000
 ```
 
-The frontend calls the API at `NEXT_PUBLIC_API_URL` (default `http://localhost:4000/api`); override it in `apps/frontend/.env.local` if the backend runs elsewhere.
+Frontend gọi API theo biến `NEXT_PUBLIC_API_URL` (mặc định `http://localhost:4000/api`). Đặt lại biến này trong `apps/frontend/.env.local` nếu backend chạy ở nơi khác.
 
-## Database (PostgreSQL + Prisma)
+## Cơ sở dữ liệu
 
-The backend stores data in PostgreSQL through Prisma. Schema: `apps/backend/prisma/schema.prisma`.
+Hai database nằm cùng một container Postgres:
 
-Two databases live in the same compose Postgres container:
+| Biến | Database | Dùng cho |
+| ---- | -------- | -------- |
+| `DATABASE_URL` | `brewlite` | server dev, `prisma migrate`, seed |
+| `DATABASE_URL_TEST` | `brewlite_test` | chỉ test e2e |
 
-| Env var | Database | Used by |
-| ------- | -------- | ------- |
-| `DATABASE_URL` | `brewlite` | dev server, `prisma migrate`, `prisma db seed` |
-| `DATABASE_URL_TEST` | `brewlite_test` | e2e tests only (migrated and seeded automatically) |
-
-```bash
-cp .env.example .env                       # root (compose) and
-cp apps/backend/.env.example apps/backend/.env   # backend (Prisma CLI reads this one)
-
-docker compose up -d db                    # Postgres 16 on localhost:5432, waits for healthcheck
-cd apps/backend
-npm install
-npx prisma migrate dev                     # create/apply migrations locally (dev only)
-npx prisma migrate deploy                  # apply existing migrations (CI / fresh DB)
-npm run prisma:seed                        # upsert the 10 seed products (idempotent)
-```
-
-`brewlite_test` is created by `docker/postgres/init/01-create-test-db.sql`, which only runs when the
-`db-data` volume is first created. If the volume already exists, create it once by hand:
+`brewlite_test` được tạo bởi `docker/postgres/init/01-create-test-db.sql` khi volume được tạo lần đầu. Nếu volume đã có từ trước, tạo tay một lần:
 
 ```bash
 docker compose exec db psql -U brewlite -d brewlite -c "CREATE DATABASE brewlite_test OWNER brewlite;"
 ```
 
-Reset the dev database (drops all data): `cd apps/backend && npx prisma migrate reset`.
+Xóa sạch dữ liệu dev: `cd apps/backend && npx prisma migrate reset`.
 
-## Tests
+## Kiểm thử
 
 ```bash
 cd apps/backend
-npm test            # unit tests, PrismaService is mocked (no database needed)
-npm run test:e2e    # needs the db container; migrates + seeds brewlite_test in beforeAll
-npm run build       # runs prisma generate, then nest build
+npm test            # test đơn vị, không cần database
+npm run test:e2e    # cần container db, tự migrate và seed brewlite_test
+npm run build
+
+cd ../frontend
+npm test            # test đơn vị (vitest)
+npm run build
 ```
 
-`npm test`, `npm run build` and `npm run test:e2e` run `prisma generate` first, so the client is always in sync with the schema.
+## API
 
-## API endpoints
+| Method | Đường dẫn | Mô tả |
+| ------ | --------- | ----- |
+| GET | `/api/products` | Danh sách sản phẩm. Lọc tùy chọn `?category=coffee\|tea\|pastry` (giá trị khác trả 400) |
+| GET | `/api/products/:id` | Một sản phẩm, 404 nếu không có |
 
-| Method | Path | Description |
-| ------ | ---- | ----------- |
-| GET | `/api/products` | List products. Optional `?category=coffee\|tea\|pastry` (400 on any other value). |
-| GET | `/api/products/:id` | Get one product, or 404 if it does not exist. |
+Ảnh menu lấy từ Unsplash, nguồn ghi trong [CREDITS.md](apps/frontend/public/images/menu/CREDITS.md).
 
-Menu photos: Unsplash, credits in [apps/frontend/public/images/menu/CREDITS.md](apps/frontend/public/images/menu/CREDITS.md).
-
-## Run with Docker
+## Chạy bằng Docker
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-## Design system
+## Giao diện
 
-Colors, fonts and tokens are in `apps/frontend/src/app/globals.css` and `tailwind.config.ts`
-(Playfair Display + DM Sans, espresso / amber / cream). Landing images are placeholders until files are
-added to `public/images` and passed as `src` to `ImageFrame`.
+Màu, font và token nằm trong `apps/frontend/src/app/globals.css` và `tailwind.config.ts` (Playfair Display + DM Sans, tông nâu espresso, hổ phách, kem).
 
-## Git workflow
+## Quy trình Git
 
-Branch per task (`feat/task-02-products-api`), small commits, review before merging to `main`.
+Mỗi task một nhánh (ví dụ `feat/task-02-products-api`), commit nhỏ bằng tiếng Việt theo dạng `feat:`, `fix:`, `docs:`, `chore:`, và được thành viên khác review trước khi merge vào `main`.
