@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { Footer } from '@/components/layout/footer';
 import { Navbar } from '@/components/layout/navbar';
@@ -11,6 +12,15 @@ import { AmberRule } from '@/components/shared/amber-rule';
 import { getProduct } from '@/lib/api';
 import { staggerDelay } from '@/lib/motion';
 import { formatVND } from '@/lib/utils';
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  try {
+    const product = await getProduct(params.id);
+    return { title: product.name };
+  } catch {
+    return {};
+  }
+}
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const product = await getProduct(params.id);
