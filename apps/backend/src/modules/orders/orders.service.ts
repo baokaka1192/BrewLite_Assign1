@@ -498,7 +498,7 @@ export class OrdersService {
     for (let attempt = 1; attempt <= STOCK_RESERVE_MAX_ATTEMPTS; attempt++) {
       const product = await tx.product.findUnique({
         where: { id: productId },
-        select: { id: true, name: true, stock: true, version: true },
+        select: { id: true, name: true, stock: true, version: true, available: true },
       });
       if (!product) {
         throw new NotFoundException(`Product ${productId} not found`);
@@ -507,8 +507,12 @@ export class OrdersService {
         throw new ConflictException(`Insufficient stock for ${product.name}`);
       }
 
+      if (!product.available) {
+        throw new BadRequestException(`Product ${productId} is not available`);
+      }
+
       const reserved = await tx.product.updateMany({
-        where: { id: productId, version: product.version, stock: { gte: qty } },
+        where: { id: productId, version: product.version, stock: { gte: qty }, available: true },
         data: { stock: { decrement: qty }, version: { increment: 1 } },
       });
       if (reserved.count === 1) {

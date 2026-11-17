@@ -99,7 +99,7 @@ describe('OrdersService.createOrder', () => {
     prisma = {
       product: {
         findMany: jest.fn().mockResolvedValue([coffee]),
-        findUnique: jest.fn().mockResolvedValue({ id: '1', name: 'Latte', stock: 10, version: 3 }),
+        findUnique: jest.fn().mockResolvedValue({ id: '1', name: 'Latte', stock: 10, version: 3, available: true }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       order: {
@@ -137,7 +137,7 @@ describe('OrdersService.createOrder', () => {
     await service.createOrder(dto, 'u1', 'key-aaaa1111');
 
     expect(prisma.product.updateMany).toHaveBeenCalledWith({
-      where: { id: '1', version: 3, stock: { gte: 2 } },
+      where: { id: '1', version: 3, stock: { gte: 2 }, available: true },
       data: { stock: { decrement: 2 }, version: { increment: 1 } },
     });
     expect(prisma.order.create).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe('OrdersService.createOrder', () => {
   it('reserves each product once with the summed qty, in sorted id order', async () => {
     prisma.product.findMany.mockResolvedValue([coffee, pastry]);
     prisma.product.findUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ id: where.id, name: where.id === '1' ? 'Latte' : 'Croissant', stock: 10, version: 0 }),
+      Promise.resolve({ id: where.id, name: where.id === '1' ? 'Latte' : 'Croissant', stock: 10, version: 0, available: true }),
     );
     const cart: CreateOrderDto = {
       items: [item({ productId: '9', qty: 2 }), item({ productId: '1', qty: 1 }), item({ productId: '9', qty: 1 })],
@@ -182,8 +182,8 @@ describe('OrdersService.createOrder', () => {
   it('answers 409 with the product name when stock dropped below qty on re-read', async () => {
     prisma.product.updateMany.mockResolvedValueOnce({ count: 0 });
     prisma.product.findUnique
-      .mockResolvedValueOnce({ id: '1', name: 'Latte', stock: 10, version: 3 })
-      .mockResolvedValueOnce({ id: '1', name: 'Latte', stock: 1, version: 4 });
+      .mockResolvedValueOnce({ id: '1', name: 'Latte', stock: 10, version: 3, available: true })
+      .mockResolvedValueOnce({ id: '1', name: 'Latte', stock: 1, version: 4, available: true });
 
     await expect(service.createOrder(dto, 'u1', 'key-aaaa1111')).rejects.toThrow(
       new ConflictException('Insufficient stock for Latte'),
@@ -201,8 +201,30 @@ describe('OrdersService.createOrder', () => {
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a product disabled after pricing without reserving stock', async () => {
+    prisma.product.findUnique.mockResolvedValue({ ...coffee, available: false, version: 3 });
+
+    await expect(service.createOrder(dto, 'u1', 'key-aaaa1111')).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.product.updateMany).not.toHaveBeenCalled();
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it('checks availability atomically when reserving and rejects a concurrent disable', async () => {
+    prisma.product.findUnique
+      .mockResolvedValueOnce({ ...coffee, version: 3 })
+      .mockResolvedValueOnce({ ...coffee, available: false, version: 3 });
+    prisma.product.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(service.createOrder(dto, 'u1', 'key-aaaa1111')).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.product.updateMany).toHaveBeenCalledTimes(1);
+    expect(prisma.product.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: '1', version: 3, stock: { gte: 2 }, available: true },
+    }));
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
   it('hides the product when the reservation empties its stock', async () => {
-    prisma.product.findUnique.mockResolvedValue({ id: '1', name: 'Latte', stock: 2, version: 3 });
+    prisma.product.findUnique.mockResolvedValue({ id: '1', name: 'Latte', stock: 2, version: 3, available: true });
 
     await service.createOrder(dto, 'u1', 'key-aaaa1111');
 
