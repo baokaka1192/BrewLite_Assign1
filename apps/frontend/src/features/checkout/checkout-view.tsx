@@ -1,7 +1,10 @@
 'use client';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useReducer, useRef, useState, type FormEvent } from 'react';
+import { RollValue } from '@/components/shared/roll-value';
+import { Shake } from '@/components/shared/shake';
 import { Button } from '@/components/ui/button';
 import { getOrder } from '@/features/orders/api';
 import { OrderStatusBadge } from '@/features/orders/status-badge';
@@ -20,6 +23,8 @@ import {
 } from './checkout-state';
 import { buildOrderPayload, buildQuoteRequest, normalizeCardNumber } from './payload';
 import { mapPaymentError } from './payment-errors';
+import { PayButton, type PayState } from './pay-button';
+import { PaymentMethodSelect } from './payment-method-select';
 import { VoucherField } from './voucher-field';
 import {
   canConfirmPayment,
@@ -55,6 +60,7 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [succeeded, setSucceeded] = useState(false);
   const [pinnedOrder, setPinnedOrder] = useState<OrderDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [voucher, dispatchVoucher] = useReducer(voucherReducer, INITIAL_VOUCHER_STATE);
@@ -164,6 +170,7 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
       unknownPaymentRef.current = null;
 
       paidRef.current = true;
+      setSucceeded(true);
       void fetchMe().catch(() => undefined); // Refresh loyalty points shown in the navbar.
       if (isPinned) {
         if (useCheckoutStore.getState().orderId === orderId) resetCheckout();
@@ -184,7 +191,7 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
   }
 
   if (isPinned) {
-    if (loadError) return <p role="alert" className="text-red-700">{loadError}</p>;
+    if (loadError) return <p role="alert" className="text-red-700 dark:text-red-300">{loadError}</p>;
     if (!pinnedOrder) return <p aria-busy="true" className="text-muted-foreground">Loading order…</p>;
     if (pinnedOrder.status === 'PAID') {
       return (
@@ -251,7 +258,7 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
           </ul>
         )}
         {quoteError && (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-red-700 dark:text-red-300">
             {quoteError}
           </p>
         )}
@@ -266,51 +273,47 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
           />
         )}
         <div className="space-y-2 text-sm">
-          {summary && summary.discount > 0 && (
-            <>
-              <p className="flex justify-between">
-                <span>Subtotal</span>
-                <span>{formatVND(summary.subtotal)}</span>
-              </p>
-              <p className="flex justify-between text-accent">
-                <span>Discount</span>
-                <span data-testid="checkout-discount">−{formatVND(summary.discount)}</span>
-              </p>
-            </>
-          )}
+          <AnimatePresence initial={false}>
+            {summary && summary.discount > 0 && (
+              <motion.div
+                key="discount"
+                className="space-y-2"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+              >
+                <p className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>
+                    <RollValue value={formatVND(summary.subtotal)} />
+                  </span>
+                </p>
+                <p className="flex justify-between text-accent-text">
+                  <span>Discount</span>
+                  <span data-testid="checkout-discount">
+                    <RollValue value={`−${formatVND(summary.discount)}`} />
+                  </span>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         <p className="flex items-baseline justify-between text-xl font-semibold">
           <span>Total</span>
-          <span data-testid="checkout-total">{summary ? formatVND(summary.total) : '—'}</span>
+          <span data-testid="checkout-total">
+            <RollValue value={summary ? formatVND(summary.total) : '—'} />
+          </span>
         </p>
         {summary && summary.pointsToEarn > 0 && (
           <p className="text-sm text-muted-foreground">You&apos;ll earn {summary.pointsToEarn} points</p>
         )}
       </section>
 
-      <form onSubmit={confirm} noValidate className="h-fit space-y-6 border border-border p-6">
+      <form onSubmit={confirm} noValidate className="h-fit space-y-6 rounded-lg border border-border bg-background p-6 shadow-sm md:sticky md:top-24">
         <fieldset disabled={busy} className="space-y-4">
           <legend className="mb-3 text-lg font-semibold">Payment method</legend>
-          <label className="flex items-center gap-3">
-            <input
-              type="radio"
-              name="method"
-              value="WALLET"
-              checked={method === 'WALLET'}
-              onChange={() => setMethod('WALLET')}
-            />
-            E-wallet
-          </label>
-          <label className="flex items-center gap-3">
-            <input
-              type="radio"
-              name="method"
-              value="CARD"
-              checked={method === 'CARD'}
-              onChange={() => setMethod('CARD')}
-            />
-            Bank card
-          </label>
+          <PaymentMethodSelect value={method} onChange={setMethod} />
 
           {method === 'CARD' && (
             <div className="space-y-2">
@@ -325,7 +328,7 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
                 value={cardNumber}
                 onChange={(e) => setCardNumber(e.target.value)}
                 placeholder="4111 1111 1111 1111"
-                className="w-full border border-border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm shadow-sm outline-none transition-[border-color,box-shadow] focus:border-primary focus:ring-2 focus:ring-primary"
               />
               <p className="text-xs text-muted-foreground">
                 Test tip: card numbers ending in 0000 simulate a failed payment.
@@ -337,9 +340,11 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
         <p className="text-sm text-muted-foreground">Cashless only. Cash is not accepted.</p>
 
         {error && (
-          <p role="alert" className="text-sm text-red-700">
-            {error}
-          </p>
+          <Shake>
+            <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+              {error}
+            </p>
+          </Shake>
         )}
         {failed && (
           <p className="text-sm">
@@ -347,14 +352,10 @@ export function CheckoutView({ pinnedOrderId }: CheckoutViewProps) {
           </p>
         )}
 
-        <Button
-          type="submit"
-          className="w-full"
+        <PayButton
+          state={succeeded ? 'success' : busy ? 'processing' : 'idle'}
           disabled={!canConfirmPayment({ busy, pinned: isPinned, hasLines: lines.length > 0, quote })}
-          aria-disabled={busy}
-        >
-          {busy ? 'Processing…' : 'Confirm payment'}
-        </Button>
+        />
       </form>
     </div>
   );

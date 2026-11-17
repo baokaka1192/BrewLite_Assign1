@@ -3,6 +3,8 @@ import { Navbar } from '@/components/layout/navbar';
 import { RequireAuth } from '@/components/auth/require-auth';
 import { OrdersListView } from '@/features/orders/orders-list-view';
 
+export const metadata = { title: 'Orders' };
+
 export default function OrdersPage() {
   return (
     <>

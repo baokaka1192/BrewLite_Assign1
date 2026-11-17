@@ -5,6 +5,8 @@ import { CheckoutView } from '@/features/checkout/checkout-view';
 
 const ORDER_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+export const metadata = { title: 'Checkout' };
+
 export default function CheckoutPage({ searchParams }: { searchParams: { orderId?: string } }) {
   const pinnedOrderId =
     typeof searchParams.orderId === 'string' && ORDER_ID_PATTERN.test(searchParams.orderId)

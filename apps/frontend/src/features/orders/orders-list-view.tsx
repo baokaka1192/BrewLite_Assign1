@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { StateIllustration } from '@/components/shared/state-illustration';
 import { Button } from '@/components/ui/button';
 import { GENERIC_ERROR_MESSAGE } from '@/lib/api';
 import { formatVND } from '@/lib/utils';
@@ -37,7 +38,7 @@ export function OrdersListView() {
   if (error) {
     return (
       <div role="alert" className="space-y-4">
-        <p className="text-red-700">{error}</p>
+        <p className="text-red-700 dark:text-red-300">{error}</p>
         <Button type="button" variant="ghost" onClick={() => setAttempt((n) => n + 1)}>
           Try again
         </Button>
@@ -49,7 +50,8 @@ export function OrdersListView() {
 
   if (data.items.length === 0) {
     return (
-      <section className="py-16 text-center">
+      <section className="motion-safe:animate-fade-in py-16 text-center">
+        <StateIllustration variant="empty" className="mx-auto mb-6" />
         <h2 className="font-display text-3xl italic text-primary">No orders yet</h2>
         <p className="mt-3 text-muted-foreground">Your paid and pending orders will show up here.</p>
         <Button asChild className="mt-8">
@@ -68,7 +70,7 @@ export function OrdersListView() {
           <li key={order.id}>
             <Link
               href={`/orders/${order.id}`}
-              className="flex flex-col gap-2 py-5 transition-colors hover:text-accent sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 py-5 transition-colors hover:text-accent-text sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="space-y-1">
                 <span className="block text-sm text-muted-foreground">
