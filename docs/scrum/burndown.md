@@ -1,25 +1,47 @@
-# Burndown (template)
+# Burndown
 
-> Template only. The team fills in the **Actual** and **Remaining** columns from their own sprint records at the
-> end of each day (see [sprint-plan.md](sprint-plan.md)). No daily actuals have been filled in here.
+> Số liệu lấy từ lịch sử git, không phải ghi chép hằng ngày của nhóm. Git chỉ cho biết khi nào commit được tạo,
+> không cho biết nhóm chia sprint theo ngày nào. Cột "ngày" dưới đây là ngày commit thật, không phải ngày sprint
+> dựng lại. Kế hoạch sprint xem tại [sprint-plan.md](sprint-plan.md).
 
-Unit: story points. Each of the 10 tasks is planned at 1 point.
+Đơn vị: story point. Mỗi task trong 10 task được tính 1 point.
 
-## Per-sprint summary
+## Tổng hợp theo sprint
 
-| Sprint | Goal | Tasks | Planned points | Actual points (done) | Remaining at end |
+| Sprint | Mục tiêu | Task | Point kế hoạch | Point hoàn thành | Còn lại |
 |---|---|---|---|---|---|
-| 1 | Foundation and menu | 1-4 | 4 | _team to fill_ | _team to fill_ |
-| 2 | Cart, orders, login | 5-7 | 3 | _team to fill_ | _team to fill_ |
-| 3 | Payment, handover, advanced backend | 8-10 | 3 | _team to fill_ | _team to fill_ |
-| **Total** | | 1-10 | **10** | _team to fill_ | _team to fill_ |
+| 1 | Nền tảng và menu | 1-4 | 4 | 4 | 0 |
+| 2 | Giỏ hàng, đơn hàng, đăng nhập | 5-7 | 3 | 3 | 0 |
+| 3 | Thanh toán, bàn giao, nghiệp vụ backend | 8-10 | 3 | 3 | 0 |
+| **Tổng** | | 1-10 | **10** | **10** | **0** |
 
-## Daily log (copy the block for each sprint day)
+"Hoàn thành" nghĩa là code của task có trong `main`, build và test chạy thành công. Mục review chéo trong
+[definition-of-done.md](definition-of-done.md) được tích riêng sau khi có PR được review.
 
-| Day | Date | Planned remaining | Actual remaining | Notes |
-|---|---|---|---|---|
-| 1 | _YYYY-MM-DD_ | _team to fill_ | _team to fill_ | |
-| 2 | _YYYY-MM-DD_ | _team to fill_ | _team to fill_ | |
+## Nhật ký theo ngày commit
 
-Planned remaining = total planned points for the sprint minus the points planned to be done by that day.
-Actual remaining = points still open at the end of the day, as recorded by the team.
+### Repo làm việc ban đầu (`BrewLite`)
+
+| Ngày | Số commit | Còn lại (point) | Ghi chú |
+|---|---|---|---|
+| 2026-10-24 | 82 | 0 | Code task 1-10: API, giao diện, test, docker, voucher và điểm thưởng |
+| 2026-10-30 | 8 | 0 | Hoàn thiện, sửa lỗi, giao diện (màu, chế độ tối) |
+| 2026-11-06 | 2 | 0 | Merge PR #1 và PR #4 (trang menu) |
+
+Tổng 92 commit trong 14 ngày (2026-10-24 đến 2026-11-06).
+
+### Repo bàn giao Assignment 1 (`BrewLite_Assign1`)
+
+| Ngày | Số commit | Ghi chú |
+|---|---|---|
+| 2026-10-24 | 15 | Phần 1: task 1-3 và logic tính giá, giữ ngày tạo commit gốc |
+| 2026-11-17 | 25 | Các thành viên đưa phần 2 và phần 3 vào repo, kèm README và tài liệu |
+
+Repo này được dựng ngày 2026-11-17 từ code đã làm ở repo ban đầu, nên ngày commit của phần sau là ngày đưa vào repo,
+không phải ngày viết code.
+
+## Hạn chế của số liệu
+
+- 82/92 commit của repo ban đầu nằm trong một ngày, nên không dựng được đường burndown dốc dần theo từng ngày sprint.
+- Phần lớn commit do một tài khoản tạo. Cột "hoàn thành" thể hiện việc đã xong, không thể hiện phân công giữa các thành viên.
+- Nếu nhóm có ghi chép sprint riêng (bảng, ảnh chụp board), hãy thay bảng trên bằng số thật của nhóm.
