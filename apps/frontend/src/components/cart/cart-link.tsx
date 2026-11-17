@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
+import { AnimatePresence, motion, useAnimate, useReducedMotion } from 'motion/react';
 import { totalItems, useCartStore } from '@/store/cart';
 
 /**
@@ -13,23 +14,47 @@ export function CartLink({ onNavigate }: { onNavigate?: () => void }) {
   useEffect(() => setMounted(true), []);
   const count = useCartStore((s) => totalItems(s));
   const shown = mounted ? count : 0;
+  const reduce = useReducedMotion();
+  const [badgeScope, animateBadge] = useAnimate<HTMLSpanElement>();
+  const prevShown = useRef(shown);
+
+  // Bounce the badge whenever the count changes (skipped on mount and under reduced motion).
+  useEffect(() => {
+    if (prevShown.current === shown) return;
+    prevShown.current = shown;
+    if (reduce || !badgeScope.current) return;
+    void animateBadge(badgeScope.current, { scale: [1, 1.3, 0.92, 1] }, { duration: 0.4, ease: 'easeOut' });
+  }, [shown, reduce, animateBadge, badgeScope]);
 
   return (
     <Link
       href="/cart"
+      data-cart-target
       onClick={onNavigate}
-      className="relative inline-flex items-center gap-2 text-sm transition-colors duration-200 hover:text-accent"
+      className="relative inline-flex items-center gap-2 text-sm transition-colors duration-200 hover:text-accent-text"
       aria-label={shown > 0 ? `Cart, ${shown} items` : 'Cart'}
     >
       <ShoppingBag className="h-4 w-4" aria-hidden />
       <span>Cart</span>
       {shown > 0 && (
-        <span
+        <motion.span
+          ref={badgeScope}
           data-testid="cart-badge"
-          className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-semibold leading-5 text-primary-foreground"
+          className="inline-flex min-w-[1.25rem] items-center justify-center overflow-hidden rounded-full bg-accent px-1.5 text-xs font-semibold leading-5 text-primary-foreground"
         >
-          {shown}
-        </span>
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={shown}
+              className="inline-block"
+              initial={{ y: '80%', opacity: 0, scale: 0.6 }}
+              animate={{ y: '0%', opacity: 1, scale: 1 }}
+              exit={{ y: '-80%', opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+            >
+              {shown}
+            </motion.span>
+          </AnimatePresence>
+        </motion.span>
       )}
     </Link>
   );

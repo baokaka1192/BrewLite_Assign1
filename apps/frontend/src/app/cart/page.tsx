@@ -2,6 +2,8 @@ import { Footer } from '@/components/layout/footer';
 import { Navbar } from '@/components/layout/navbar';
 import { CartView } from '@/components/cart/cart-view';
 
+export const metadata = { title: 'Cart' };
+
 export default function CartPage() {
   return (
     <>
