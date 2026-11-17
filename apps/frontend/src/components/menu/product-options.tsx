@@ -1,5 +1,7 @@
 'use client';
 import { useId, useState } from 'react';
+import { Check } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { lineTotal, unitPrice } from '@/lib/price';
 import { cn, formatVND } from '@/lib/utils';
@@ -17,12 +19,41 @@ interface ProductOptionsProps {
   product: Product;
   /** Called with the chosen options. Cart wiring is added in Task 5. */
   onAdd?: (selection: ProductSelection) => void;
+  /** Shows the "Added" confirmation state on the submit button. */
+  justAdded?: boolean;
+  /** Ref to the submit button, used as the origin of the fly-to-cart animation. */
+  submitRef?: React.Ref<HTMLButtonElement>;
+}
+
+function AddButtonLabel({ added }: { added: boolean }) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span
+        key={added ? 'added' : 'add'}
+        className="inline-flex items-center gap-2"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+      >
+        {added ? (
+          <>
+            <Check className="h-4 w-4" aria-hidden />
+            Added
+          </>
+        ) : (
+          'Add to cart'
+        )}
+      </motion.span>
+    </AnimatePresence>
+  );
 }
 
 const MIN_QTY = 1;
 
-export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
+export function ProductOptions({ product, onAdd, justAdded = false, submitRef }: ProductOptionsProps) {
   const uid = useId();
+  const reduceMotion = useReducedMotion();
   const soldOut = !product.available || product.stock <= 0;
   const maxQty = Math.max(product.stock, MIN_QTY);
   const hasSizes = product.sizes.length > 0;
@@ -47,8 +78,8 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
 
   const optionClass = (disabled: boolean) =>
     cn(
-      'flex cursor-pointer items-center justify-between gap-4 border border-border px-4 py-3 text-sm transition-colors duration-200',
-      !disabled && 'hover:border-primary',
+      'flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-border bg-background px-4 py-3 text-sm shadow-sm transition-[border-color,background-color,box-shadow] duration-200 has-[:checked]:border-accent has-[:checked]:bg-accent/10 has-[:checked]:shadow-[0_4px_14px_-8px_hsl(var(--accent)/0.6)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary has-[:focus-visible]:ring-offset-2',
+      !disabled && 'hover:border-primary/60',
       disabled && 'cursor-not-allowed opacity-50',
     );
 
@@ -67,7 +98,14 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
             {product.sizes.map((size) => {
               const id = `${uid}-size-${size.code}`;
               return (
-                <label key={size.code} htmlFor={id} className={optionClass(soldOut)}>
+                <motion.label
+                  key={size.code}
+                  htmlFor={id}
+                  className={optionClass(soldOut)}
+                  animate={{ scale: sizeCode === size.code && !reduceMotion ? 1.02 : 1 }}
+                  whileTap={reduceMotion || soldOut ? undefined : { scale: 0.97 }}
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 28 }}
+                >
                   <span className="flex items-center gap-2">
                     <input
                       id={id}
@@ -83,7 +121,7 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
                   <span className="text-muted-foreground">
                     {size.delta === 0 ? 'Base' : `+${formatVND(size.delta)}`}
                   </span>
-                </label>
+                </motion.label>
               );
             })}
           </div>
@@ -97,7 +135,14 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
             {product.toppings.map((topping) => {
               const id = `${uid}-topping-${topping.id}`;
               return (
-                <label key={topping.id} htmlFor={id} className={optionClass(soldOut)}>
+                <motion.label
+                  key={topping.id}
+                  htmlFor={id}
+                  className={optionClass(soldOut)}
+                  animate={{ scale: toppingIds.includes(topping.id) && !reduceMotion ? 1.02 : 1 }}
+                  whileTap={reduceMotion || soldOut ? undefined : { scale: 0.97 }}
+                  transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 28 }}
+                >
                   <span className="flex items-center gap-2">
                     <input
                       id={id}
@@ -110,7 +155,7 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
                     <span className="font-medium">{topping.name}</span>
                   </span>
                   <span className="text-muted-foreground">+{formatVND(topping.price)}</span>
-                </label>
+                </motion.label>
               );
             })}
           </div>
@@ -118,7 +163,7 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
       )}
 
       <div className="flex flex-wrap items-center gap-6">
-        <div role="group" aria-labelledby={`${uid}-qty-label`} className="flex items-center gap-3">
+        <div role="group" aria-labelledby={`${uid}-qty-label`} className="flex items-center gap-3 rounded-full border border-border bg-background p-1">
           <span id={`${uid}-qty-label`} className="text-sm font-semibold uppercase tracking-label">
             Quantity
           </span>
@@ -142,7 +187,7 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
             value={quantity}
             disabled={soldOut}
             onChange={(e) => setQuantity(clampQty(e.currentTarget.valueAsNumber))}
-            className="h-9 w-16 border border-border bg-background text-center text-sm disabled:opacity-50"
+            className="h-9 w-14 rounded-full border-0 bg-transparent text-center text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
           />
           <Button
             type="button"
@@ -169,8 +214,14 @@ export function ProductOptions({ product, onAdd }: ProductOptionsProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <Button type="submit" size="default" disabled={soldOut}>
-          {soldOut ? 'Sold out' : 'Add to cart'}
+        <Button
+          ref={submitRef}
+          type="submit"
+          size="default"
+          disabled={soldOut}
+          className={cn(justAdded && !soldOut && 'bg-accent text-primary-foreground hover:bg-accent')}
+        >
+          {soldOut ? 'Sold out' : <AddButtonLabel added={justAdded} />}
         </Button>
         {soldOut && <p className="text-sm text-muted-foreground">This item is currently unavailable.</p>}
       </div>

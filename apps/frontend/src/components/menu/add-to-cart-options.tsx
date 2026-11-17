@@ -1,7 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { FlyToCartLayer } from '@/components/cart/fly-to-cart-layer';
 import { ProductOptions, type ProductSelection } from '@/components/menu/product-options';
+import { requestFlyToCart } from '@/lib/fly-to-cart';
 import { useCartStore } from '@/store/cart';
+import { useToastStore } from '@/store/toast';
 import type { Product } from '@/types/product';
 
 const FEEDBACK_MS = 1800;
@@ -9,7 +12,9 @@ const FEEDBACK_MS = 1800;
 /** Client bridge between the server-rendered product page and the cart store. */
 export function AddToCartOptions({ product }: { product: Product }) {
   const add = useCartStore((s) => s.add);
+  const showToast = useToastStore((s) => s.show);
   const [added, setAdded] = useState(false);
+  const submitRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!added) return;
@@ -29,15 +34,23 @@ export function AddToCartOptions({ product }: { product: Product }) {
       qty: selection.quantity,
       stock: product.stock,
     });
+
+    const rect = submitRef.current?.getBoundingClientRect();
+    if (rect && rect.width > 0) {
+      requestFlyToCart({
+        from: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+        imageUrl: product.imageUrl,
+        alt: product.name,
+      });
+    }
     setAdded(true);
+    showToast('Added to cart', undefined, { label: 'View cart', href: '/cart' });
   };
 
   return (
     <>
-      <ProductOptions product={product} onAdd={handleAdd} />
-      <p role="status" aria-live="polite" className="mt-4 text-sm font-medium text-accent">
-        {added ? 'Added to your cart.' : ''}
-      </p>
+      <FlyToCartLayer />
+      <ProductOptions product={product} onAdd={handleAdd} justAdded={added} submitRef={submitRef} />
     </>
   );
 }

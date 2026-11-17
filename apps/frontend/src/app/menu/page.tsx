@@ -5,6 +5,8 @@ import { MenuView } from '@/components/menu/menu-view';
 import { MenuSkeleton } from '@/components/menu/menu-skeleton';
 import { AmberRule } from '@/components/shared/amber-rule';
 
+export const metadata = { title: 'Menu' };
+
 export default function MenuPage() {
   return (
     <>
