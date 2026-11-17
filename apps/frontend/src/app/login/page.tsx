@@ -4,6 +4,8 @@ import { Navbar } from '@/components/layout/navbar';
 import { LoginForm } from '@/components/auth/login-form';
 import { safeNextPath } from '@/lib/safe-next-path';
 
+export const metadata = { title: 'Log in' };
+
 export default function LoginPage({ searchParams }: { searchParams: { next?: string } }) {
   const next = safeNextPath(searchParams.next);
   return (
@@ -15,7 +17,7 @@ export default function LoginPage({ searchParams }: { searchParams: { next?: str
           <LoginForm next={next} />
           <p className="mt-8 text-sm">
             New here?{' '}
-            <Link href={`/register?next=${encodeURIComponent(next)}`} className="underline hover:text-accent">
+            <Link href={`/register?next=${encodeURIComponent(next)}`} className="underline hover:text-accent-text">
               Create an account
             </Link>
           </p>

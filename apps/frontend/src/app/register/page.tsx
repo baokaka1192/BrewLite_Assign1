@@ -4,6 +4,8 @@ import { Navbar } from '@/components/layout/navbar';
 import { RegisterForm } from '@/components/auth/register-form';
 import { safeNextPath } from '@/lib/safe-next-path';
 
+export const metadata = { title: 'Register' };
+
 export default function RegisterPage({ searchParams }: { searchParams: { next?: string } }) {
   const next = safeNextPath(searchParams.next);
   return (
@@ -15,7 +17,7 @@ export default function RegisterPage({ searchParams }: { searchParams: { next?: 
           <RegisterForm next={next} />
           <p className="mt-8 text-sm">
             Already have an account?{' '}
-            <Link href={`/login?next=${encodeURIComponent(next)}`} className="underline hover:text-accent">
+            <Link href={`/login?next=${encodeURIComponent(next)}`} className="underline hover:text-accent-text">
               Log in
             </Link>
           </p>

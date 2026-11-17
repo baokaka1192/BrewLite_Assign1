@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api';
 import { register } from '@/lib/auth';
 import { PASSWORD_MAX, PASSWORD_MIN, validateRegister, type FieldErrors } from '@/lib/auth-validation';
 import { AuthField } from '@/components/auth/auth-field';
+import { GoogleSignIn } from '@/components/auth/google-button';
 import { Button } from '@/components/ui/button';
 
 export function RegisterForm({ next }: { next: string }) {
@@ -46,7 +47,7 @@ export function RegisterForm({ next }: { next: string }) {
   return (
     <form noValidate onSubmit={onSubmit} className="mt-8 flex flex-col gap-6" aria-busy={submitting}>
       {serverError && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
           {serverError}
         </p>
       )}
@@ -83,6 +84,7 @@ export function RegisterForm({ next }: { next: string }) {
       <Button type="submit" size="default" disabled={submitting}>
         {submitting ? 'Creating account…' : 'Create account'}
       </Button>
+      <GoogleSignIn next={next} />
     </form>
   );
 }

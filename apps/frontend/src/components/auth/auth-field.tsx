@@ -25,10 +25,10 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="h-11 rounded-md border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary aria-[invalid=true]:border-red-600 disabled:opacity-60"
+        className="h-11 rounded-md border border-border bg-background px-3 text-sm shadow-sm outline-none transition-[border-color,box-shadow] focus:border-primary focus:ring-2 focus:ring-primary aria-[invalid=true]:border-red-600 dark:aria-[invalid=true]:border-red-400 disabled:opacity-60"
       />
       {error && (
-        <p id={errorId} role="alert" className="text-sm text-red-600">
+        <p id={errorId} role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
       )}
