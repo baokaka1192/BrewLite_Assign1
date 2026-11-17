@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { GoogleTokenVerifier, OAuth2GoogleTokenVerifier } from './google-token-verifier';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
@@ -20,7 +21,7 @@ import { JwtStrategy } from './jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, { provide: GoogleTokenVerifier, useClass: OAuth2GoogleTokenVerifier }],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

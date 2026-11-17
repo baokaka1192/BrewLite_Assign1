@@ -3,6 +3,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthUser } from './auth-user';
 import { AuthResponse, AuthService, PublicUser } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -19,6 +20,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto): Promise<AuthResponse> {
     return this.auth.login(dto);
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  loginWithGoogle(@Body() dto: GoogleLoginDto): Promise<AuthResponse> {
+    return this.auth.loginWithGoogle(dto);
   }
 
   @Get('me')

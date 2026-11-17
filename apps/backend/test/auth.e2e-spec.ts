@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import * as request from 'supertest';
 import configuration from '../src/config/configuration';
 import { AuthModule } from '../src/modules/auth/auth.module';
+import { GoogleTokenVerifier } from '../src/modules/auth/google-token-verifier';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -17,6 +18,8 @@ const TEST_DATABASE_URL =
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  const googleVerifier = { verify: jest.fn() };
+  const GOOGLE_CLIENT_ID = 'e2e-client-id.apps.googleusercontent.com';
 
   const runId = Date.now();
   const email = `auth-e2e-${runId}@example.com`;
@@ -25,12 +28,16 @@ describe('Auth (e2e)', () => {
   beforeAll(async () => {
     // Never run e2e against the development database.
     process.env.DATABASE_URL = TEST_DATABASE_URL;
+    process.env.GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
     const env = { ...process.env, DATABASE_URL: TEST_DATABASE_URL };
     execSync('npx prisma migrate deploy', { cwd: BACKEND_DIR, env, stdio: 'inherit' });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [ConfigModule.forRoot({ isGlobal: true, load: [configuration] }), PrismaModule, AuthModule],
-    }).compile();
+    })
+      .overrideProvider(GoogleTokenVerifier)
+      .useValue(googleVerifier)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api');
@@ -62,7 +69,7 @@ describe('Auth (e2e)', () => {
 
     const stored = await prisma.user.findUniqueOrThrow({ where: { email } });
     expect(stored.passwordHash).not.toBe(password);
-    expect(await bcrypt.compare(password, stored.passwordHash)).toBe(true);
+    expect(await bcrypt.compare(password, stored.passwordHash ?? '')).toBe(true);
   });
 
   it('POST /api/auth/register returns 409 for a duplicate email, ignoring case', () => {
@@ -124,6 +131,107 @@ describe('Auth (e2e)', () => {
       .send({ email: `nobody-${runId}@example.com`, password })
       .expect(401)
       .expect((res) => expect(res.body.message).toBe('Invalid email or password'));
+  });
+
+  describe('POST /api/auth/google', () => {
+    const googleEmail = `google-e2e-${runId}@example.com`;
+    const googleSub = `sub-${runId}`;
+
+    beforeEach(() => {
+      googleVerifier.verify.mockReset();
+    });
+
+    it('creates a Google-only account and returns 200 with a token', async () => {
+      googleVerifier.verify.mockResolvedValue({
+        googleId: `new-${googleSub}`,
+        email: googleEmail.toUpperCase(),
+        emailVerified: true,
+        name: 'G User',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/google')
+        .send({ idToken: 'valid-id-token' })
+        .expect(200);
+
+      expect(googleVerifier.verify).toHaveBeenCalledWith('valid-id-token', GOOGLE_CLIENT_ID);
+      expect(res.body.accessToken).toEqual(expect.any(String));
+      expect(res.body.user).toEqual({ id: expect.any(String), email: googleEmail, name: 'G User', loyaltyPoints: 0 });
+      expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+
+      const stored = await prisma.user.findUniqueOrThrow({ where: { email: googleEmail } });
+      expect(stored.passwordHash).toBeNull();
+      expect(stored.googleId).toBe(`new-${googleSub}`);
+    });
+
+    it('logs in an existing Google account again', async () => {
+      googleVerifier.verify.mockResolvedValue({
+        googleId: `new-${googleSub}`,
+        email: googleEmail,
+        emailVerified: true,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/google')
+        .send({ idToken: 'valid-id-token' })
+        .expect(200);
+
+      expect(res.body.user.email).toBe(googleEmail);
+    });
+
+    it('links a Google id to an existing password account with the same email', async () => {
+      const linkEmail = `link-e2e-${runId}@example.com`;
+      const registered = await request(app.getHttpServer())
+        .post('/api/auth/register')
+        .send({ email: linkEmail, password })
+        .expect(201);
+      googleVerifier.verify.mockResolvedValue({ googleId: `link-${googleSub}`, email: linkEmail, emailVerified: true });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/google')
+        .send({ idToken: 'valid-id-token' })
+        .expect(200);
+
+      expect(res.body.user.id).toBe(registered.body.user.id);
+      const stored = await prisma.user.findUniqueOrThrow({ where: { email: linkEmail } });
+      expect(stored.googleId).toBe(`link-${googleSub}`);
+      expect(stored.passwordHash).not.toBeNull();
+    });
+
+    it('returns 401 when the Google email is not verified', async () => {
+      googleVerifier.verify.mockResolvedValue({
+        googleId: `unverified-${googleSub}`,
+        email: `unverified-${runId}@example.com`,
+        emailVerified: false,
+      });
+
+      await request(app.getHttpServer()).post('/api/auth/google').send({ idToken: 'id-token' }).expect(401);
+    });
+
+    it('returns 401 for an invalid Google token', async () => {
+      googleVerifier.verify.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .post('/api/auth/google')
+        .send({ idToken: 'bogus' })
+        .expect(401)
+        .expect((res) => expect(res.body.message).toBe('Invalid Google token'));
+    });
+
+    it('returns 400 when idToken is missing', () => {
+      return request(app.getHttpServer()).post('/api/auth/google').send({}).expect(400);
+    });
+
+    it('refuses password login for a Google-only account with the same generic 401', async () => {
+      googleVerifier.verify.mockResolvedValue({ googleId: `pw-${googleSub}`, email: `pw-${runId}@example.com`, emailVerified: true });
+      await request(app.getHttpServer()).post('/api/auth/google').send({ idToken: 'id-token' }).expect(200);
+
+      return request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: `pw-${runId}@example.com`, password })
+        .expect(401)
+        .expect((res) => expect(res.body.message).toBe('Invalid email or password'));
+    });
   });
 
   it('GET /api/auth/me returns 401 without a token', () => {

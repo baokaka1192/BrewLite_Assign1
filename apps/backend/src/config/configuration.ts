@@ -20,6 +20,8 @@ export default () => {
   return {
     port: parseInt(process.env.PORT ?? '4000', 10),
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    // Optional. Empty disables POST /api/auth/google (404).
+    googleClientId: (process.env.GOOGLE_CLIENT_ID ?? '').trim(),
     databaseUrl: process.env.DATABASE_URL,
     jwt: {
       // The dev fallback is only reachable outside production (checked above).
