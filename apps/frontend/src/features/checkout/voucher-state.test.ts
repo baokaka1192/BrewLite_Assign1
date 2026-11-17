@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '@/lib/api';
+import { formatVND } from '@/lib/utils';
 import type { QuoteResponse } from '@/types/order';
 import {
   canConfirmPayment,
@@ -94,6 +95,20 @@ describe('mapQuoteError', () => {
     expect(mapQuoteError(new ApiError(400, 'Voucher is invalid or expired'), true)).toEqual({
       voucherError: true,
       message: 'Voucher is invalid or expired',
+    });
+  });
+
+  it('formats the minimum subtotal message in Vietnamese', () => {
+    expect(mapQuoteError(new ApiError(400, 'Order subtotal must be at least 100000'), true)).toEqual({
+      voucherError: true,
+      message: `Đơn hàng tối thiểu ${formatVND(100000)} để dùng voucher này`,
+    });
+  });
+
+  it('keeps a minimum subtotal message that does not match the pattern', () => {
+    expect(mapQuoteError(new ApiError(400, 'Order subtotal must be at least abc'), true)).toEqual({
+      voucherError: true,
+      message: 'Order subtotal must be at least abc',
     });
   });
 

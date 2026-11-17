@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/api';
+import { formatVND } from '@/lib/utils';
 import type { QuoteResponse } from '@/types/order';
 import { mapPaymentError } from './payment-errors';
 
@@ -56,10 +57,17 @@ export function voucherReducer(state: VoucherState, action: VoucherAction): Vouc
   }
 }
 
+const MIN_SUBTOTAL_MESSAGE = /^Order subtotal must be at least (\d+)$/;
+
+function voucherMessage(message: string): string {
+  const match = MIN_SUBTOTAL_MESSAGE.exec(message);
+  return match ? `Đơn hàng tối thiểu ${formatVND(Number(match[1]))} để dùng voucher này` : message;
+}
+
 /** Maps a failed quote request. A 400 while a voucher was sent means the voucher itself was rejected. */
 export function mapQuoteError(err: unknown, sentVoucher: boolean): { voucherError: boolean; message: string } {
   if (sentVoucher && err instanceof ApiError && err.status === 400) {
-    return { voucherError: true, message: err.message };
+    return { voucherError: true, message: voucherMessage(err.message) };
   }
   return { voucherError: false, message: mapPaymentError(err).message };
 }
